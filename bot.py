@@ -27,8 +27,7 @@ def get_product_details(product_id):
         query = "SELECT * FROM products WHERE id = %s"
         cursor.execute(query, (product_id,))
         product = cursor.fetchone()
-        print(f"Query executed, product fetched: {product}")  # Debugging line
-
+        
         if product:
             return (
                 f"🛒 *Product Details:*\n"
@@ -66,17 +65,18 @@ def telegram_webhook():
         if text.lower() == "/hi":
             send_message(chat_id, "Hello from the script! 😊")
         elif text.lower().startswith("/price"):
-    parts = text.split(" ", 1)
-    if len(parts) > 1:
-        product_id = parts[1].strip()  # Remove any leading/trailing spaces
-        print(f"Received product ID: {product_id}")  # Debugging line
-        product_info = get_product_details(product_id)
-        if product_info:
-            send_message(chat_id, product_info)
+            parts = text.split(" ", 1)
+            if len(parts) > 1:
+                product_id = parts[1].strip()
+                product_info = get_product_details(product_id)
+                if product_info:
+                    send_message(chat_id, product_info)
+                else:
+                    send_message(chat_id, f"❌ Product ID *{product_id}* not found.")
+            else:
+                send_message(chat_id, "❌ Please provide a product ID.\nUsage: `/price <product_id>`")
         else:
-            send_message(chat_id, f"❌ Product ID *{product_id}* not found.")
-    else:
-        send_message(chat_id, "❌ Please provide a product ID.\nUsage: `/price <product_id>`")
+            send_message(chat_id, "❌ Unknown command.\nTry `/hi` or `/price <product_id>`.")
 
     return "OK", 200
 
