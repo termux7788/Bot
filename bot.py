@@ -9,10 +9,10 @@ BOT_TOKEN = "7796990854:AAHnCNxciOPO6i2UPQFmJFHB4DhBON3l2-s"
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/"
 
 # MySQL Database configuration
-DB_HOST = 'sql200.epizy.com'  # Database host, change to your server if hosted elsewhere
-DB_USER = 'epiz_32198676'  # Your MySQL username
-DB_PASSWORD = 'akqVqZ69kFmX'  # Your MySQL password
-DB_NAME = 'epiz_32198676_bot'  # Your database name
+DB_HOST = 'sql.freedb.tech'  # Database host, change to your server if hosted elsewhere
+DB_USER = 'freedb_bot-tele'  # Your MySQL username
+DB_PASSWORD = '8%6ne2FbcyM%fKd'  # Your MySQL password
+DB_NAME = 'freedb_bot-tele'  # Your database name
 
 # Function to fetch product details from MySQL database
 def get_product_details(product_id):
