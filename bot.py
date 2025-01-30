@@ -18,36 +18,30 @@ DB_USER = 'freedb_bot-tele'
 DB_PASSWORD = '8%6ne2FbcyM%fKd'
 DB_NAME = 'freedb_bot-tele'
 
-from flask import Flask, request
-import requests
-import mysql.connector
+# Function to fetch stock data from JSON
+def get_stock_data():
+    try:
+        response = requests.get(JSON_URL)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException:
+        return None
 
-app = Flask(__name__)
-
-# Telegram Bot Token
-BOT_TOKEN = "7796990854:AAHnCNxciOPO6i2UPQFmJFHB4DhBON3l2-s"
-TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/"
-
-# Database credentials
-DB_CONFIG = {
-    "host": "sql.freedb.tech",
-    "user": "freedb_bot-tele",
-    "password": "8%6ne2FbcyM%fKd",
-    "database": "freedb_bot-tele"
-}
-
-# JSON URL for /p command
-JSON_URL = "https://peaceful-pika-5db9ea.netlify.app/"
-
-# Function to fetch product details from MySQL
+# Function to get product details by ID from MySQL database
 def get_product_details_from_db(product_id):
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
+        conn = mysql.connector.connect(
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            connect_timeout=10  # Increase timeout
+        )
         cursor = conn.cursor(dictionary=True)
 
-        # Fetch product by ID
-        query = "SELECT * FROM products WHERE id = %s"
-        cursor.execute(query, (product_id,))
+        # Fetch product by ID using LIKE for flexible matching
+        query = "SELECT * FROM products WHERE id LIKE %s"
+        cursor.execute(query, (f"%{product_id}%",))
         product = cursor.fetchone()
 
         cursor.close()
@@ -63,32 +57,15 @@ def get_product_details_from_db(product_id):
                 f"🖼 *Image:* [View Image](https://silkrood.42web.io/stock/{product['productImage']})"
             )
         else:
-            return None  # Product not found
+            return f"❌ Product ID *{product_id}* not found in database."
+
     except mysql.connector.Error as err:
-        print(f"Database error: {err}")  # Debugging step
-        return None
-
-# Function to fetch product details from JSON
-def get_product_details_from_json(product_id):
-    try:
-        response = requests.get(JSON_URL)
-        response.raise_for_status()
-        stock_data = response.json()
-
-        for product in stock_data:
-            if str(product["id"]) == str(product_id):
-                return (
-                    f"🛒 *Product Details from DLBD:*\n"
-                    f"🔹 *Name:* {product['productName']}\n"
-                    f"💰 *Price:* {product['sellPrice']} BDT\n"
-                    f"📏 *Size:* {product['size']}\n"
-                    f"📦 *Status:* {product['status']}\n"
-                    f"🖼 *Image:* [View Image](https://silkrood.42web.io/stock/{product['productImage']})"
-                )
-        return None  # Product not found
-    except requests.RequestException as err:
-        print(f"Error fetching JSON: {err}")  # Debugging step
-        return None
+        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+            return "❌ Invalid username or password."
+        elif err.errno == errorcode.ER_BAD_DB_ERROR:
+            return "❌ Database does not exist."
+        else:
+            return f"❌ Database error: {err}"
 
 # Function to send a message to Telegram
 def send_message(chat_id, text, parse_mode="Markdown"):
@@ -112,8 +89,6 @@ def telegram_webhook():
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 product_id = parts[1].strip()
-                print(f"Received product ID from /price: {product_id}")  # Debugging step
-
                 product_info = get_product_details_from_db(product_id)
                 if product_info:
                     send_message(chat_id, product_info)
@@ -125,8 +100,6 @@ def telegram_webhook():
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 product_id = parts[1].strip()
-                print(f"Received product ID from /p: {product_id}")  # Debugging step
-
                 product_info = get_product_details_from_json(product_id)
                 if product_info:
                     send_message(chat_id, product_info)
@@ -139,6 +112,22 @@ def telegram_webhook():
 
     return "OK", 200
 
+# Function to fetch product details by ID from JSON file
+def get_product_details_from_json(product_id):
+    stock_data = get_stock_data()
+    if stock_data:
+        for product in stock_data:
+            if product["id"] == product_id:
+                return (
+                    f"🛒 *Product Details from DLBD:*\n"
+                    f"🔹 *Name:* {product['productName']}\n"
+                    f"💰 *Price:* {product['sellPrice']} BDT\n"
+                    f"📏 *Size:* {product['size']}\n"
+                    f"📦 *Status:* {product['status']}\n"
+                    f"🖼 *Image:* [View Image](https://silkrood.42web.io/stock/{product['productImage']})"
+                )
+    return None
+
 # Run the Flask app
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, threaded=True)
