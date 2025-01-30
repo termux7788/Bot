@@ -1,33 +1,39 @@
-from flask import Flask, request
-import requests
 import mysql.connector
+import requests
+from flask import Flask, request
 
 app = Flask(__name__)
 
-# Telegram Bot Token
+# Your Telegram Bot Token
 BOT_TOKEN = "7796990854:AAHnCNxciOPO6i2UPQFmJFHB4DhBON3l2-s"
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/"
 
-# Database credentials
+# Database configuration
 DB_CONFIG = {
-    "host": "sql.freedb.tech",
-    "user": "freedb_bot-tele",
-    "password": "8%6ne2FbcyM%fKd",
-    "database": "freedb_bot-tele"
+    'host': 'sql.freedb.tech',
+    'user': 'freedb_bot-tele',
+    'password': '8%6ne2FbcyM%fKd',
+    'database': 'freedb_bot-tele'
 }
 
-# JSON URL for /p command
+# JSON file URL
 JSON_URL = "https://peaceful-pika-5db9ea.netlify.app/"
 
-# Function to fetch product details from MySQL
+# Function to send a message to Telegram
+def send_message(chat_id, text, parse_mode="Markdown"):
+    url = TELEGRAM_API_URL + "sendMessage"
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
+    requests.post(url, json=payload)
+
+# Function to fetch product details from the database
 def get_product_details_from_db(product_id):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
 
-        # Fetch product by ID
-        query = "SELECT * FROM products WHERE id = %s"
-        cursor.execute(query, (product_id,))
+        # Fetch product by ID using LIKE for flexible matching
+        query = "SELECT * FROM products WHERE id LIKE %s"
+        cursor.execute(query, (f"%{product_id}%",))
         product = cursor.fetchone()
 
         cursor.close()
@@ -43,10 +49,10 @@ def get_product_details_from_db(product_id):
                 f"🖼 *Image:* [View Image](https://silkrood.42web.io/stock/{product['productImage']})"
             )
         else:
-            return None  # Product not found
+            return f"❌ Product ID *{product_id}* not found in database."
+
     except mysql.connector.Error as err:
-        print(f"Database error: {err}")  # Debugging step
-        return None
+        return f"❌ Database error: {err}"
 
 # Function to fetch product details from JSON
 def get_product_details_from_json(product_id):
@@ -56,7 +62,7 @@ def get_product_details_from_json(product_id):
         stock_data = response.json()
 
         for product in stock_data:
-            if str(product["id"]) == str(product_id):
+            if product["id"] == product_id:
                 return (
                     f"🛒 *Product Details from JSON:*\n"
                     f"🔹 *Name:* {product['productName']}\n"
@@ -65,16 +71,9 @@ def get_product_details_from_json(product_id):
                     f"📦 *Status:* {product['status']}\n"
                     f"🖼 *Image:* [View Image](https://silkrood.42web.io/stock/{product['productImage']})"
                 )
-        return None  # Product not found
-    except requests.RequestException as err:
-        print(f"Error fetching JSON: {err}")  # Debugging step
-        return None
-
-# Function to send a message to Telegram
-def send_message(chat_id, text, parse_mode="Markdown"):
-    url = TELEGRAM_API_URL + "sendMessage"
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
-    requests.post(url, json=payload)
+        return f"❌ Product ID *{product_id}* not found in JSON."
+    except requests.RequestException:
+        return "❌ Failed to fetch data from the JSON source."
 
 # Telegram webhook route
 @app.route("/", methods=["POST"])
@@ -92,26 +91,16 @@ def telegram_webhook():
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 product_id = parts[1].strip()
-                print(f"Received product ID from /price: {product_id}")  # Debugging step
-
                 product_info = get_product_details_from_db(product_id)
-                if product_info:
-                    send_message(chat_id, product_info)
-                else:
-                    send_message(chat_id, f"❌ Product ID *{product_id}* not found in database.")
+                send_message(chat_id, product_info)
             else:
                 send_message(chat_id, "❌ Please provide a product ID.\nUsage: `/price <product_id>`")
         elif text.lower().startswith("/p"):
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 product_id = parts[1].strip()
-                print(f"Received product ID from /p: {product_id}")  # Debugging step
-
                 product_info = get_product_details_from_json(product_id)
-                if product_info:
-                    send_message(chat_id, product_info)
-                else:
-                    send_message(chat_id, f"❌ Product ID *{product_id}* not found in JSON.")
+                send_message(chat_id, product_info)
             else:
                 send_message(chat_id, "❌ Please provide a product ID.\nUsage: `/p <product_id>`")
         else:
