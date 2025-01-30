@@ -8,7 +8,7 @@ BOT_TOKEN = "7796990854:AAHnCNxciOPO6i2UPQFmJFHB4DhBON3l2-s"
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/"
 
 # JSON file URL
-JSON_URL = "http://silkrood.42web.io/stock/json_proxy.php"
+JSON_URL = "https://peaceful-pika-5db9ea.netlify.app/"
 
 # Function to fetch stock data
 def get_stock_data():
