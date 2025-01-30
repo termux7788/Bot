@@ -16,8 +16,11 @@ DB_CONFIG = {
     "database": "freedb_bot-tele"
 }
 
+# JSON URL for /p command
+JSON_URL = "https://peaceful-pika-5db9ea.netlify.app/"
+
 # Function to fetch product details from MySQL
-def get_product_details(product_id):
+def get_product_details_from_db(product_id):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
@@ -32,7 +35,7 @@ def get_product_details(product_id):
 
         if product:
             return (
-                f"🛒 *Product Details:*\n"
+                f"🛒 *Product Details from DB:*\n"
                 f"🔹 *Name:* {product['productName']}\n"
                 f"💰 *Price:* {product['sellPrice']} BDT\n"
                 f"📏 *Size:* {product['size']}\n"
@@ -43,6 +46,28 @@ def get_product_details(product_id):
             return None  # Product not found
     except mysql.connector.Error as err:
         print(f"Database error: {err}")  # Debugging step
+        return None
+
+# Function to fetch product details from JSON
+def get_product_details_from_json(product_id):
+    try:
+        response = requests.get(JSON_URL)
+        response.raise_for_status()
+        stock_data = response.json()
+
+        for product in stock_data:
+            if str(product["id"]) == str(product_id):
+                return (
+                    f"🛒 *Product Details from JSON:*\n"
+                    f"🔹 *Name:* {product['productName']}\n"
+                    f"💰 *Price:* {product['sellPrice']} BDT\n"
+                    f"📏 *Size:* {product['size']}\n"
+                    f"📦 *Status:* {product['status']}\n"
+                    f"🖼 *Image:* [View Image](https://silkrood.42web.io/stock/{product['productImage']})"
+                )
+        return None  # Product not found
+    except requests.RequestException as err:
+        print(f"Error fetching JSON: {err}")  # Debugging step
         return None
 
 # Function to send a message to Telegram
@@ -67,17 +92,30 @@ def telegram_webhook():
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 product_id = parts[1].strip()
-                print(f"Received product ID: {product_id}")  # Debugging step
+                print(f"Received product ID from /price: {product_id}")  # Debugging step
 
-                product_info = get_product_details(product_id)
+                product_info = get_product_details_from_db(product_id)
                 if product_info:
                     send_message(chat_id, product_info)
                 else:
-                    send_message(chat_id, f"❌ Product ID *{product_id}* not found.")
+                    send_message(chat_id, f"❌ Product ID *{product_id}* not found in database.")
             else:
                 send_message(chat_id, "❌ Please provide a product ID.\nUsage: `/price <product_id>`")
+        elif text.lower().startswith("/p"):
+            parts = text.split(" ", 1)
+            if len(parts) > 1:
+                product_id = parts[1].strip()
+                print(f"Received product ID from /p: {product_id}")  # Debugging step
+
+                product_info = get_product_details_from_json(product_id)
+                if product_info:
+                    send_message(chat_id, product_info)
+                else:
+                    send_message(chat_id, f"❌ Product ID *{product_id}* not found in JSON.")
+            else:
+                send_message(chat_id, "❌ Please provide a product ID.\nUsage: `/p <product_id>`")
         else:
-            send_message(chat_id, "❌ Unknown command.\nTry `/hi` or `/price <product_id>`.")
+            send_message(chat_id, "❌ Unknown command.\nTry `/hi`, `/price <product_id>`, or `/p <product_id>`.")
 
     return "OK", 200
 
