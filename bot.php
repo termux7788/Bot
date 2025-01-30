@@ -1,6 +1,6 @@
 <?php
 // Your Telegram Bot Token
-$botToken = "7796990854:AAHnCNxciOPO6i2UPQFmJFHB4DhBON3l2-s";
+$botToken = "bot-tocken";
 $apiUrl = "https://api.telegram.org/bot" . $botToken . "/";
 
 // URL of the stock_data.json file
