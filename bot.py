@@ -1,38 +1,42 @@
 from flask import Flask, request
 import requests
+import mysql.connector
 
 app = Flask(__name__)
 
-# Your Telegram Bot Token
+# Telegram Bot Token
 BOT_TOKEN = "7796990854:AAHnCNxciOPO6i2UPQFmJFHB4DhBON3l2-s"
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/"
 
-# JSON file URL
-JSON_URL = "https://peaceful-pika-5db9ea.netlify.app/"
+# Database Connection
+DB_CONFIG = {
+    "host": "sql.freedb.tech",
+    "user": "freedb_bot-tele",
+    "password": "8%6ne2FbcyM%fKd",
+    "database": "freedb_bot-tele",
+}
 
-# Function to fetch stock data
-def get_stock_data():
-    try:
-        response = requests.get(JSON_URL)
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException:
-        return None
-
-# Function to get product details by ID
+# Function to fetch product details from MySQL
 def get_product_details(product_id):
-    stock_data = get_stock_data()
-    if stock_data:
-        for product in stock_data:
-            if product["id"] == product_id:
-                return (
-                    f"🛒 *Product Details:*\n"
-                    f"🔹 *Name:* {product['productName']}\n"
-                    f"💰 *Price:* {product['sellPrice']} BDT\n"
-                    f"📏 *Size:* {product['size']}\n"
-                    f"📦 *Status:* {product['status']}\n"
-                    f"🖼 *Image:* [View Image](https://silkrood.42web.io/stock/{product['productImage']})"
-                )
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+        product = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if product:
+            return (
+                f"🛒 *Product Details:*\n"
+                f"🔹 *Name:* {product['productName']}\n"
+                f"💰 *Price:* {product['sellPrice']} BDT\n"
+                f"📏 *Size:* {product['size']}\n"
+                f"📦 *Status:* {product['status']}\n"
+                f"🖼 *Image:* [View Image]({product['productImage']})"
+            )
+    except mysql.connector.Error as err:
+        print(f"Database Error: {err}")
     return None
 
 # Function to send a message to Telegram
@@ -52,7 +56,7 @@ def telegram_webhook():
 
         # Handle commands
         if text.lower() == "/hi":
-            send_message(chat_id, "Hello from the script! 😊")
+            send_message(chat_id, "Hello from the bot! 😊")
         elif text.lower().startswith("/price"):
             parts = text.split(" ", 1)
             if len(parts) > 1:
