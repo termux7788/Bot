@@ -1,4 +1,5 @@
 from flask import Flask, request
+import mysql.connector
 import requests
 
 app = Flask(__name__)
@@ -7,33 +8,43 @@ app = Flask(__name__)
 BOT_TOKEN = "7796990854:AAHnCNxciOPO6i2UPQFmJFHB4DhBON3l2-s"
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/"
 
-# JSON file URL
-JSON_URL = "https://peaceful-pika-5db9ea.netlify.app/"
+# MySQL Database configuration
+DB_HOST = 'sql200.epizy.com'  # Database host, change to your server if hosted elsewhere
+DB_USER = 'epiz_32198676'  # Your MySQL username
+DB_PASSWORD = 'akqVqZ69kFmX'  # Your MySQL password
+DB_NAME = 'epiz_32198676_bot'  # Your database name
 
-# Function to fetch stock data
-def get_stock_data():
-    try:
-        response = requests.get(JSON_URL)
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException:
-        return None
-
-# Function to get product details by ID
+# Function to fetch product details from MySQL database
 def get_product_details(product_id):
-    stock_data = get_stock_data()
-    if stock_data:
-        for product in stock_data:
-            if product["id"] == product_id:
-                return (
-                    f"🛒 *Product Details:*\n"
-                    f"🔹 *Name:* {product['productName']}\n"
-                    f"💰 *Price:* {product['sellPrice']} BDT\n"
-                    f"📏 *Size:* {product['size']}\n"
-                    f"📦 *Status:* {product['status']}\n"
-                    f"🖼 *Image:* [View Image](https://silkrood.42web.io/stock/{product['productImage']})"
-                )
-    return None
+    try:
+        connection = mysql.connector.connect(
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME
+        )
+        cursor = connection.cursor(dictionary=True)
+        query = "SELECT * FROM products WHERE id = %s"
+        cursor.execute(query, (product_id,))
+        product = cursor.fetchone()
+        
+        if product:
+            return (
+                f"🛒 *Product Details:*\n"
+                f"🔹 *Name:* {product['productName']}\n"
+                f"💰 *Price:* {product['sellPrice']} BDT\n"
+                f"📏 *Size:* {product['size']}\n"
+                f"📦 *Status:* {product['status']}\n"
+                f"🖼 *Image:* [View Image](https://yourdomain.com/{product['productImage']})"
+            )
+        else:
+            return None
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+        return None
+    finally:
+        cursor.close()
+        connection.close()
 
 # Function to send a message to Telegram
 def send_message(chat_id, text, parse_mode="Markdown"):
