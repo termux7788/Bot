@@ -8,12 +8,12 @@ app = Flask(__name__)
 BOT_TOKEN = "7796990854:AAHnCNxciOPO6i2UPQFmJFHB4DhBON3l2-s"
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/"
 
-# Database Connection
+# Database credentials
 DB_CONFIG = {
     "host": "sql.freedb.tech",
     "user": "freedb_bot-tele",
     "password": "8%6ne2FbcyM%fKd",
-    "database": "freedb_bot-tele",
+    "database": "freedb_bot-tele"
 }
 
 # Function to fetch product details from MySQL
@@ -21,8 +21,12 @@ def get_product_details(product_id):
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+
+        # Fetch product by ID
+        query = "SELECT * FROM products WHERE id = %s"
+        cursor.execute(query, (product_id,))
         product = cursor.fetchone()
+
         cursor.close()
         conn.close()
 
@@ -33,11 +37,13 @@ def get_product_details(product_id):
                 f"💰 *Price:* {product['sellPrice']} BDT\n"
                 f"📏 *Size:* {product['size']}\n"
                 f"📦 *Status:* {product['status']}\n"
-                f"🖼 *Image:* [View Image]({product['productImage']})"
+                f"🖼 *Image:* [View Image](https://silkrood.42web.io/stock/{product['productImage']})"
             )
+        else:
+            return None  # Product not found
     except mysql.connector.Error as err:
-        print(f"Database Error: {err}")
-    return None
+        print(f"Database error: {err}")  # Debugging step
+        return None
 
 # Function to send a message to Telegram
 def send_message(chat_id, text, parse_mode="Markdown"):
@@ -56,11 +62,13 @@ def telegram_webhook():
 
         # Handle commands
         if text.lower() == "/hi":
-            send_message(chat_id, "Hello from the bot! 😊")
+            send_message(chat_id, "Hello from the script! 😊")
         elif text.lower().startswith("/price"):
             parts = text.split(" ", 1)
             if len(parts) > 1:
                 product_id = parts[1].strip()
+                print(f"Received product ID: {product_id}")  # Debugging step
+
                 product_info = get_product_details(product_id)
                 if product_info:
                     send_message(chat_id, product_info)
