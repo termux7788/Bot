@@ -17,7 +17,7 @@ DB_CONFIG = {
 }
 
 # JSON URL for /p command
-JSON_URL = "https://peaceful-pika-5db9ea.netlify.app/"
+JSON_URL = "https://termux7788.github.io/stock_data/index.html"
 
 # Function to fetch product details from MySQL
 def get_product_details_from_db(product_id):
